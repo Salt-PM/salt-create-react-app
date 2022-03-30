@@ -100,6 +100,7 @@ const hasJsxRuntime = (() => {
 module.exports = function (webpackEnv) {
   const isEnvDevelopment = webpackEnv === 'development';
   const isEnvProduction = webpackEnv === 'production';
+  const isElectron = process.env.ELECTRON_ENV === 'true';
 
   // Variable used for enabling profiling in Production
   // passed into alias object. Uses a flag if passed into the build command
@@ -327,6 +328,35 @@ module.exports = function (webpackEnv) {
           'scheduler/tracing': 'scheduler/tracing-profiling',
         }),
         ...(modules.webpackAliases || {}),
+        ...(!isElectron ?
+          {
+            fs: "browserfs/dist/shims/fs.js",
+            "fs-extra": "browserfs/dist/shims/fs.js",
+            buffer: "browserfs/dist/shims/buffer.js",
+            path: "browserfs/dist/shims/path.js",
+            processGlobal: "browserfs/dist/shims/process.js",
+            process: "browserfs/dist/shims/process.js",
+            bufferGlobal: "browserfs/dist/shims/bufferGlobal.js",
+            bfsGlobal: require.resolve("browserfs"),
+            stream: "stream-browserify",
+            "constants": require.resolve("constants-browserify"),
+            os: require.resolve("os-browserify/browser"),
+            url: require.resolve("url/"),
+            util: require.resolve("util/"),
+            assert: require.resolve("assert/"),
+            crypto: require.resolve("crypto-browserify"),
+            zlib: require.resolve("browserify-zlib"),
+            events: require.resolve("events/"),
+            tls: false,
+            net: false,
+            dns: false,
+            http2: false,
+            http: require.resolve("stream-http"),
+            https: require.resolve("stream-http"),
+            "child_process": false,
+            vm2: false,
+            "sftp-promises": false,
+          }: {}),
       },
       plugins: [
         // Prevents users from importing files from outside of src/ (or node_modules/).
@@ -344,6 +374,20 @@ module.exports = function (webpackEnv) {
         ]),
       ],
     },
+    externals: (!isElectron ? {
+        "node:fs": "commonjs node:fs",
+        "node:buffer": "commonjs node:buffer",
+        "node:path": "commonjs node:path",
+        "node:events": "commonjs node:events",
+        "node:http": "commonjs node:http",
+        "node:https": "commonjs node:https",
+        "node:net": "commonjs node:net",
+        "node:process": "commonjs node:process",
+        "node:stream": "commonjs node:stream",
+        "node:tls": "commonjs node:tls",
+        "node:url": "commonjs node:url",
+        "node:util": "commonjs node:util",
+    }: {}),
     module: {
       strictExportPresence: true,
       rules: [
@@ -600,6 +644,7 @@ module.exports = function (webpackEnv) {
           ],
         },
       ].filter(Boolean),
+      noParse: /browserfs\.js/
     },
     plugins: [
       // Generates an `index.html` file with the <script> injected.
@@ -786,6 +831,11 @@ module.exports = function (webpackEnv) {
             },
           },
         }),
+        (!isElectron ? new webpack.ProvidePlugin({
+            BrowserFS: "bfsGlobal",
+            process: "processGlobal",
+            Buffer: "bufferGlobal",
+        }): null),
     ].filter(Boolean),
     // Turn off performance processing because we utilize
     // our own hints via the FileSizeReporter
